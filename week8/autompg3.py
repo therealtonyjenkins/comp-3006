@@ -2,8 +2,6 @@ import argparse
 from collections import defaultdict, namedtuple
 import csv
 import logging
-import matplotlib
-matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from os import path
 import requests
@@ -63,13 +61,13 @@ class AutoMPGData():
             """ Corrects given make names to a standard make name. """
             ## define model corrections
             correct_makes = {
-                '\'chevroelt\'': '\'chevrolet\'',
-                '\'chevy\'': '\'chevrolet\'',
-                '\'maxda\'': '\'mazda\'',
-                '\'mercedes\'-\'benz\'': 'mercedes',
-                '\'toyouta\'': '\'toyota\'',
-                '\'vokswagen\'': '\'volkswagen\'',
-                '\'vw\'': '\'volkswagen\''
+                'chevroelt': 'chevrolet',
+                'chevy': 'chevrolet',
+                'maxda': 'mazda',
+                'mercedes-benz': 'mercedes',
+                'toyouta': 'toyota',
+                'vokswagen': 'volkswagen',
+                'vw': 'volkswagen'
             }
             ## return corrected make
             return correct_makes[car_make] if car_make in correct_makes.keys() else car_make
@@ -93,23 +91,21 @@ class AutoMPGData():
                 logger.debug('Parsing auto-mpg.clean.txt into AutoMPG objects')
                 for auto_record in csv.reader(clean_data, delimiter= ' ', skipinitialspace= True):
                     ## split the car name into 2 tokens
-                    split = auto_record[8].split(' ', 1)
+                    split = auto_record[8].replace('\'', '').split(' ', 1)
                     ## handle the case for 'subaru'
                     if len(split) < 2:
-                        make = f'\'{split[0]}\''
+                        make = f'{split[0]}'
                         auto = Record(auto_record[0], auto_record[6], __correct_car_make(make), '')
                     elif len(split) == 2:
-                        make = f'\'{split[0]}\''
-                        ## handle the case for '\' cuda'
-                        clean_model = split[1].replace('\'', '')
-                        model = f'\'{clean_model}\''
+                        make = f'{split[0]}'
+                        model = f'{split[1]}'
                         auto = Record(auto_record[0], auto_record[6], __correct_car_make(make), model)
                     counter += 1
                     ## append the auto object
                     self.data.append(AutoMPG(auto.make, auto.model, auto.year, auto.mpg))
         except Exception as e:
             logger.info(f'Error occurred: {e}')
-        
+         
     def _clean_data(self):
         """Read the auto-mpg dataset and generates a 'cleansed', whitespace-delimited file."""
         if not path.exists('auto-mpg.data.txt'):
@@ -221,17 +217,16 @@ def main():
     ## handle argparse setup
     parser = argparse.ArgumentParser(description= 'Analyze Auto MPG data set', epilog= 'Vroom vroom!')
     parser.add_argument('command', metavar= '<command>', help= 'The command to execute.', type= str)
-    parser.add_argument('mpg_by_year', metavar= 'mpg_by_year', help= 'Output data to summary of mpg by year.', type= str)
-    parser.add_argument('mpg_by_make', metavar= 'mpg_by_year', help= 'Output data to summary of mpg by year.', type= str)
     parser.add_argument('-s', '--sort', metavar= '<sort order>', choices = ['year', 'mpg', 'default'], type= str, dest= 'sort_order', default= 'default')
-    parser.add_argument('-o', '--ofile', metavar= '<outfile>', dest= 'output_file', type= str, default= 'std_out')
-    parser.add_argument('-p', '--plot', metavar= '<plot>', dest= 'plot_file', type= str, default= 'none')
+    parser.add_argument('-o', '--ofile', metavar= '<output file>', dest= 'output_file', type= str, default= 'std_out')
+    parser.add_argument('-p', '--plot', action= 'store_true')
     args = parser.parse_args()
+    print(args)
 
-    if args.command == 'print':
-        ## instantiate AutoMPGData
-        autos = AutoMPGData()
+    ## instantiate AutoMPGData
+    autos = AutoMPGData()
 
+    if args.command == 'print': ## do basic printing
         ## do sorting
         if args.sort_order == 'year':
             autos.sort_by_year()
@@ -240,60 +235,60 @@ def main():
         else:
             autos.sort_by_default()
 
-        ## check which aggregation we should do
-        if args.mpg_by_year:
-            ## get the dictionary
-            agg = AutoMPGData.mpg_by_year()
-            csv_colunms = ['year', 'avg_mpg']
-
-            if args.plot != 'none':
-                if args.output_file != 'std_out':
-                    ## output mpg_by_year RAW DATA to csv
-                    try:
-                        with open(args.output_file, 'w') as outfile:
-                            auto_writer = csv.DictWriter(outfile, fieldnames= csv_colunms)
-                            for key in agg.keys():
-                                auto_writer.writerow(key, agg[key])
-                    except Exception as e:
-                        print('Something bad happened')
-                else:
-                    ## output mpg_by_year RAW DATA to stdout
-                    for key in agg.keys():
-                        print(f'\'{key}\', \'{agg[key]}\'', file= sys.stdout)
-            else:
-                if args.output_file != 'std_out':
-                    ## output mpg_by_year PLOT to file
-                    pass
-                else:
-                    ## output mpg_by_year PLOT to stdout
-                    pass
-        elif args.mpg_by_make:
-            if args.plot != 'none':
-                if args.output_file != 'std_out':
-                    pass
-                else:
-                    pass
-            else:
-                if args.output_file != 'std_out':
-                    pass
-                else:
-                    pass
-
-        ## do output
         if args.output_file != 'std_out':
-            ## write auto data to file
+            ## output RAW data to csv
             try:
                 with open(args.output_file, 'w') as outfile:
-                    auto_writer = csv.writer(outfile, delimiter= ',', quotechar= '"', quoting= csv.QUOTE_NONE)
+                    auto_writer = csv.writer(outfile, delimiter= ',', quotechar= '"', quoting= csv.QUOTE_ALL)
+                    csv_columns = ['make', 'model', 'year', 'mpg']
+                    auto_writer.writerow(csv_columns)
                     for auto in autos:
-                        line = [auto.make, auto.model, auto.year, auto.mpg]
-                        auto_writer.writerow(line)
+                        auto_writer.writerow([ auto.make, auto.model, auto.year, auto.mpg ])
             except Exception as e:
-                print('Something bad happened')
+                print(f'Something bad happened: {e}')
         else:
-            ## write auto data to standard output
+            ## output RAW data to standard output
+            print(f'\"make\", \"model\", \"year\", \"mpg\"', file= sys.stdout)
             for auto in autos:
-                print(auto, file= sys.stdout)
+                print(f'\"{auto.make}\", \"{auto.model}\", \"{auto.year}\", \"{auto.mpg}\"', file= sys.stdout)
+
+    elif args and args.command != 'print': ## do mpg_by_year aggregation
+        ## get the dictionary and set the header values
+        title = None
+        if args.command == 'mpg_by_year':
+            agg = AutoMPGData().mpg_by_year()
+            csv_columns = ['year', 'avg_mpg']
+            title = 'Miles per Gallon by Year'
+        else:
+            agg = AutoMPGData().mpg_by_make()
+            csv_columns = ['make', 'avg_mpg']
+            title = 'Miles per Gallon by Make'
+
+        ## handle output
+        if args.output_file != 'std_out':
+            ## output AGGREGATED DATA to csv
+            try:
+                with open(args.output_file, 'w') as outfile:
+                    auto_writer = csv.writer(outfile, delimiter= ',', quotechar= '"', quoting= csv.QUOTE_ALL)
+                    auto_writer.writerow(csv_columns)
+                    for key in sorted(agg.keys()):
+                        auto_writer.writerow([ key, agg[key] ])
+            except Exception as e:
+                print(f'Something bad happened {e}')
+        else:
+            ## output AGGREGATED DATA to standard output
+            for key in sorted(agg.keys()):
+                print(f'\"{key}\", \"{agg[key]}\"', file= sys.stdout)
+
+        ## handle plotting
+        if args.plot:
+            ## setup plot config
+            plt.ylabel('Miles per Gallon')
+            plt.xlabel('Year')
+            plt.xticks(rotation= 75)
+            plt.title(title)
+            plt.plot(agg.keys(), agg.values(), 'r--')
+            plt.show()            
 
 if __name__ == '__main__':
     main()
