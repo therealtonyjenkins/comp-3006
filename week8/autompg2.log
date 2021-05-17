@@ -1,0 +1,4 @@
+checking auto-mpg.data.txt
+checking auto-mpg.clean.txt
+auto-mpg.clean.txt exists
+Parsing auto-mpg.clean.txt into AutoMPG objects
